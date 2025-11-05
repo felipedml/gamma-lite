@@ -1,18 +1,22 @@
-:root{
-  --pc-primary:#6D6D6D;
-  --pc-bg:#F5F5F5;
-  --pc-text:#222222;
-  --pc-surface:#FFFFFF;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pc-primary: #6D6D6D;
+  --pc-bg: #F5F5F5;
+  --pc-text: #222222;
+  --pc-surface: #FFFFFF;
 }
 
-html,body{
+html, body {
   background: var(--pc-bg);
   color: var(--pc-text);
 }
 
-.card{
+.card {
   background: var(--pc-surface);
-  border: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   border-radius: 14px;
 }
