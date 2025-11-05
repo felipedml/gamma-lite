@@ -1,153 +1,100 @@
-'use client';
+// app/page.tsx
+"use client";
 
-import { useRef, useState } from 'react';
-import { buildRevealHTML } from '@/lib/revealTemplate';
+import { useState } from "react";
 
 export default function Home() {
-  const [topic, setTopic] = useState('');
-  const [slidesCount, setSlidesCount] = useState(8);
-  const [language, setLanguage] = useState('pt-BR');
-  const [tone, setTone] = useState('didático');
-  const [model, setModel] = useState('gpt-4o-mini');
+  const [topic, setTopic] = useState("");
+  const [language, setLanguage] = useState("pt-BR");
+  const [useResearch, setUseResearch] = useState(true);
+  const [extraText, setExtraText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [outline, setOutline] = useState(null);
-  const [html, setHtml] = useState('');
-  const iframeRef = useRef(null);
+  const [md, setMd] = useState("");
 
-  const handleGenerate = async () => {
-    if (!topic.trim()) return alert('Descreva o tema/assunto.');
+  async function onGenerate() {
     setLoading(true);
-    setOutline(null);
-    setHtml('');
-
-    try {
-      const resp = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, slidesCount: Number(slidesCount), language, tone, model })
-      });
-
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data?.error || 'Falha na geração');
-
-      setOutline(data.outline);
-      const htmlStr = buildRevealHTML({
-        title: data.outline.title || 'Apresentação',
-        slides: data.outline.slides,
-        theme: 'black'
-      });
-      setHtml(htmlStr);
-      // Preview no iframe
-      if (iframeRef.current) iframeRef.current.srcdoc = htmlStr;
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDownload = () => {
-    if (!html) return;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const safe = (outline?.title || 'apresentacao').toLowerCase().replace(/[^\w]+/g,'-');
-    a.href = url;
-    a.download = `${safe}.html`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+    setMd("");
+    const r = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic,
+        language,
+        research: useResearch,
+        extraText,
+      }),
+    });
+    const j = await r.json();
+    setLoading(false);
+    if (j?.ok) setMd(j.content);
+    else alert(j?.error || "Falha ao gerar.");
+  }
 
   return (
-    <div className="container">
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}>
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="text-3xl font-semibold mb-6">
+        {process.env.NEXT_PUBLIC_APP_TITLE || "Gamma-lite – Pembroke Collins"}
+      </h1>
+
+      <label className="block mb-2 font-medium">Tema</label>
+      <input
+        className="w-full border rounded px-3 py-2 mb-4"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+        placeholder='Ex.: "Aula sobre O Cortiço"'
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div>
-          <div className="headerTitle">Gamma-lite</div>
-          <div className="sub">Gerador de slides (OpenAI + Reveal.js). Sem banco, sem auth, deploy instantâneo no Vercel.</div>
+          <label className="block mb-2 font-medium">Idioma</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            <option value="pt-BR">Português (BR)</option>
+            <option value="en-US">English (US)</option>
+            <option value="es-ES">Español</option>
+          </select>
         </div>
-        <span className="badge">Zero-setup</span>
-      </div>
-
-      <div className="spacer" />
-
-      <div className="panel">
-        <label className="label">Tema / Conteúdo (cole um resumo, tópicos ou texto base)</label>
-        <textarea
-          className="textarea"
-          rows={5}
-          placeholder="Ex.: Aula sobre o romance O cortiço (Aluísio Azevedo): naturalismo, enredo, narrador, personagens, crítica social..."
-          value={topic}
-          onChange={e => setTopic(e.target.value)}
-        />
-        <div className="spacer" />
-        <div className="row">
-          <div>
-            <label className="label">Nº de slides (corpo)</label>
-            <input className="input" type="number" min="3" max="25" value={slidesCount}
-                   onChange={e=>setSlidesCount(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Idioma</label>
-            <select className="select" value={language} onChange={e=>setLanguage(e.target.value)}>
-              <option value="pt-BR">Português (Brasil)</option>
-              <option value="en-US">English (US)</option>
-              <option value="es-ES">Español</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Tom</label>
-            <select className="select" value={tone} onChange={e=>setTone(e.target.value)}>
-              <option>didático</option>
-              <option>executivo</option>
-              <option>inspirador</option>
-              <option>científico</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="spacer" />
-        <div className="row">
-          <div>
-            <label className="label">Modelo</label>
-            <select className="select" value={model} onChange={e=>setModel(e.target.value)}>
-              <option value="gpt-4o-mini">gpt-4o-mini (custo baixo)</option>
-              <option value="gpt-4o">gpt-4o</option>
-              <option value="gpt-4.1">gpt-4.1</option>
-              <option value="o4-mini">o4-mini (reasoning)</option>
-            </select>
-            <div className="small">Use o que sua conta permitir. Só precisa do <code>OPENAI_API_KEY</code>.</div>
-          </div>
-          <div style={{alignSelf:'end'}}>
-            <button className="btn" disabled={loading} onClick={handleGenerate}>
-              {loading ? 'Gerando…' : 'Gerar apresentação'}
-            </button>
-          </div>
-          <div style={{alignSelf:'end'}}>
-            <button className="btn" disabled={!html} onClick={handleDownload}>Baixar .html</button>
-          </div>
+        <div className="md:col-span-2 flex items-end gap-2">
+          <input
+            id="research"
+            type="checkbox"
+            checked={useResearch}
+            onChange={(e) => setUseResearch(e.target.checked)}
+          />
+          <label htmlFor="research">Usar pesquisa (Perplexity)</label>
         </div>
       </div>
 
-      <div className="spacer" />
+      <label className="block mb-2 font-medium">
+        Texto adicional (opcional)
+      </label>
+      <textarea
+        className="w-full border rounded px-3 py-2 mb-4 min-h-[120px]"
+        value={extraText}
+        onChange={(e) => setExtraText(e.target.value)}
+        placeholder="Cole anotações, tópicos ou trechos do material…"
+      />
 
-      <div className="panel">
-        <div className="label">Pré-visualização</div>
-        <div className="iframeWrap">
-          <iframe ref={iframeRef} title="preview" />
-        </div>
-      </div>
+      <button
+        className="bg-brand-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        onClick={onGenerate}
+        disabled={!topic || loading}
+      >
+        {loading ? "Gerando…" : "Gerar apresentação"}
+      </button>
 
-      {!!outline && (
+      {md && (
         <>
-          <div className="spacer" />
-          <div className="panel">
-            <div className="label">Roteiro (JSON)</div>
-            <pre style={{whiteSpace:'pre-wrap',overflow:'auto',background:'#0b0f12',padding:'12px',borderRadius:10,border:'1px solid #1e2630'}}>
-{JSON.stringify(outline, null, 2)}
-            </pre>
-          </div>
+          <hr className="my-8" />
+          <h2 className="font-semibold mb-3">Markdown gerado</h2>
+          <pre className="whitespace-pre-wrap border rounded p-4 bg-white">
+            {md}
+          </pre>
         </>
       )}
-    </div>
+    </main>
   );
 }
