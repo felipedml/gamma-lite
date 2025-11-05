@@ -1,7 +1,8 @@
-// app/page.tsx
+// app/page.js
 "use client";
 
 import { useState } from "react";
+import UploadBox from "@/components/UploadBox";
 
 export default function Home() {
   const [topic, setTopic] = useState("");
@@ -14,20 +15,26 @@ export default function Home() {
   async function onGenerate() {
     setLoading(true);
     setMd("");
-    const r = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        topic,
-        language,
-        research: useResearch,
-        extraText,
-      }),
-    });
-    const j = await r.json();
-    setLoading(false);
-    if (j?.ok) setMd(j.content);
-    else alert(j?.error || "Falha ao gerar.");
+    try {
+      const r = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic,
+          language,
+          research: useResearch,
+          extraText,
+        }),
+      });
+      const j = await r.json();
+      if (j?.ok) setMd(j.content);
+      else alert(j?.error || "Falha ao gerar.");
+    } catch (e) {
+      console.error(e);
+      alert("Erro de rede ao gerar.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -57,6 +64,7 @@ export default function Home() {
             <option value="es-ES">Español</option>
           </select>
         </div>
+
         <div className="md:col-span-2 flex items-end gap-2">
           <input
             id="research"
@@ -68,9 +76,17 @@ export default function Home() {
         </div>
       </div>
 
-      <label className="block mb-2 font-medium">
-        Texto adicional (opcional)
-      </label>
+      {/* Upload de arquivos para extrair texto e anexar ao prompt */}
+      <div className="mb-4">
+        <label className="block mb-2 font-medium">Anexar arquivos (opcional)</label>
+        <UploadBox
+          onExtract={(t) =>
+            setExtraText((prev) => (prev ? prev + "\n\n" + t : t))
+          }
+        />
+      </div>
+
+      <label className="block mb-2 font-medium">Texto adicional (opcional)</label>
       <textarea
         className="w-full border rounded px-3 py-2 mb-4 min-h-[120px]"
         value={extraText}
