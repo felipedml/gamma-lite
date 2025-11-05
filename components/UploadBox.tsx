@@ -1,19 +1,29 @@
 "use client";
 import { useState } from "react";
 
-export default function UploadBox({ onExtract }: { onExtract: (t: string) => void }) {
+export default function UploadBox({ onExtract }) {
   const [busy, setBusy] = useState(false);
 
-  async function handleFile(f: File) {
+  async function handleFile(f) {
     setBusy(true);
     const fd = new FormData();
     fd.append("file", f);
-
-    const r = await fetch("/api/extract", { method: "POST", body: fd });
-    const j = await r.json();
-    setBusy(false);
-    if (j?.ok) onExtract(j.text as string);
-    else alert(j?.error || "Falha no upload");
+    try {
+      const r = await fetch("/api/extract", {
+        method: "POST",
+        body: fd,
+      });
+      const j = await r.json();
+      if (j?.ok) {
+        onExtract(j.text);
+      } else {
+        alert(j?.error || "Falha no upload");
+      }
+    } catch {
+      alert("Erro no upload");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
