@@ -1,15 +1,18 @@
-/* app/globals.css */
-:root {
-  --brand-700: #4a4a4a;
-  --brand-600: #666666;
-  --brand-100: #f2f2f2;
+:root{
+  --pc-primary:#6D6D6D;
+  --pc-bg:#F5F5F5;
+  --pc-text:#222222;
+  --pc-surface:#FFFFFF;
 }
-html, body {
-  background: var(--brand-100);
-  color: #1f1f1f;
+
+html,body{
+  background: var(--pc-bg);
+  color: var(--pc-text);
 }
-a { color: var(--brand-700); }
-.btn-primary {
-  background: var(--brand-600);
-  color: #fff;
+
+.card{
+  background: var(--pc-surface);
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border-radius: 14px;
 }
