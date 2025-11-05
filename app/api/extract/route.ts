@@ -1,60 +1,83 @@
-import { NextRequest, NextResponse } from "next/server";
-import Busboy from "busboy";
-import pdfParse from "pdf-parse";
-import mammoth from "mammoth";
+// app/api/extract/route.ts
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
 
-/**
- * Processa o corpo multipart/form-data e retorna buffer e nome.
- */
-function parseMultipart(req: NextRequest): Promise<{ buffer: Buffer; filename: string }> {
-  return new Promise((resolve, reject) => {
-    const bb = Busboy({
-      headers: Object.fromEntries(req.headers),
-      limits: { files: 1, fileSize: 200 * 1024 * 1024 }, // até 200 MB
-    });
-    let fileBuffer: Buffer[] = [];
-    let filename = "upload";
-    bb.on("file", (_name, file, info) => {
-      filename = info.filename || "upload";
-      file.on("data", (d) => fileBuffer.push(d));
-    });
-    bb.on("finish", () => {
-      resolve({ buffer: Buffer.concat(fileBuffer), filename });
-    });
-    bb.on("error", reject);
-    // @ts-ignore
-    req.body.pipe(bb);
-  });
+// Utilitário simples para ler todo o corpo multipart/form-data
+async function readFormData(req: Request) {
+  const form = await req.formData();
+  const files: File[] = [];
+  for (const [key, value] of form.entries()) {
+    if (value instanceof File) files.push(value);
+  }
+  return files;
 }
 
-async function extractText(buffer: Buffer, filename: string) {
-  const lower = filename.toLowerCase();
-  if (lower.endsWith(".txt") || lower.endsWith(".md")) {
-    return buffer.toString("utf-8");
-  }
-  if (lower.endsWith(".docx")) {
-    const res = await mammoth.extractRawText({ buffer });
-    return res.value || "";
-  }
-  if (lower.endsWith(".pdf")) {
-    const res = await pdfParse(buffer);
-    return res.text || "";
-  }
-  return buffer.toString("utf-8");
+// Extração por tipo
+async function extractFromPdf(buf: Buffer) {
+  const pdfParse = (await import("pdf-parse")).default; // dynamic import
+  const res = await pdfParse(buf);
+  return res.text || "";
 }
 
-export async function POST(req: NextRequest) {
+async function extractFromDocx(buf: Buffer) {
+  const mammoth = await import("mammoth"); // dynamic import
+  const { value } = await mammoth.extractRawText({ buffer: buf });
+  return value || "";
+}
+
+async function extractFromTxt(buf: Buffer) {
+  return buf.toString("utf8");
+}
+
+export async function POST(req: Request) {
   try {
-    const { buffer, filename } = await parseMultipart(req);
-    const text = await extractText(buffer, filename);
-    return NextResponse.json({ ok: true, text, filename });
+    const files = await readFormData(req);
+    if (!files.length) {
+      return NextResponse.json(
+        { ok: false, error: "Nenhum arquivo recebido." },
+        { status: 400 }
+      );
+    }
+
+    const results: { name: string; text: string }[] = [];
+
+    for (const file of files) {
+      const ab = await file.arrayBuffer();
+      const buf = Buffer.from(ab);
+      const lower = file.name.toLowerCase();
+
+      let text = "";
+      if (lower.endsWith(".pdf")) {
+        text = await extractFromPdf(buf);
+      } else if (lower.endsWith(".docx")) {
+        text = await extractFromDocx(buf);
+      } else if (lower.endsWith(".txt") || file.type === "text/plain") {
+        text = await extractFromTxt(buf);
+      } else {
+        // tenta por MIME se extensão não ajudar
+        if (file.type === "application/pdf") text = await extractFromPdf(buf);
+        else if (
+          file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+          text = await extractFromDocx(buf);
+        else text = await extractFromTxt(buf);
+      }
+
+      // higieniza um pouco
+      text = text.replace(/\u0000/g, "").trim();
+      results.push({ name: file.name, text });
+    }
+
+    // concatena tudo (UploadBox usa isso)
+    const joined = results.map(r => `# ${r.name}\n\n${r.text}`).join("\n\n---\n\n");
+    return NextResponse.json({ ok: true, text: joined });
   } catch (e: any) {
+    console.error("extract error:", e);
     return NextResponse.json(
-      { ok: false, error: e?.message || "Falha no upload" },
-      { status: 400 }
+      { ok: false, error: e?.message || "Falha ao extrair texto." },
+      { status: 500 }
     );
   }
 }
