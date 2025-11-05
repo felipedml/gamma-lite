@@ -1,0 +1,11 @@
+# Node
+node_modules
+.npm
+.pnpm-store
+
+# Next
+.next
+out
+
+# Env
+.env
