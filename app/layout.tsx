@@ -1,4 +1,3 @@
-// app/layout.tsx
 import "./globals.css";
 import Image from "next/image";
 
@@ -7,11 +6,11 @@ export const metadata = {
   description: "Gerador de slides com IA",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-dvh antialiased">
-        <header className="sticky top-0 z-50 bg-[var(--pc-surface)]/90 backdrop-blur border-b border-black/5">
+      <body className="min-h-screen antialiased">
+        <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-black/5">
           <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
             <Image
               src="/pembroke-collins-logo.png"
@@ -20,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               height={40}
               priority
             />
-            <div className="ml-auto text-sm text-black/50">
+            <div className="ml-auto text-sm text-gray-500">
               Gamma-lite
             </div>
           </div>
