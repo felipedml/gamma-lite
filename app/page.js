@@ -1,47 +1,58 @@
-// app/page.js
 "use client";
-
 import { useState } from "react";
 import UploadBox from "@/components/UploadBox";
+import { TEMPLATES } from "@/lib/templates";
 
 export default function Home() {
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState("pt-BR");
   const [useResearch, setUseResearch] = useState(true);
   const [extraText, setExtraText] = useState("");
+
+  const [templateId, setTemplateId] = useState<keyof typeof TEMPLATES>("professional");
+  const [textDensity, setTextDensity] = useState<"compact" | "balanced" | "detailed">("balanced");
+  const [visualDensity, setVisualDensity] = useState<"low" | "medium" | "high">("medium");
+  const [generateImages, setGenerateImages] = useState(true);
+  const [maxImages, setMaxImages] = useState(8);
+
   const [loading, setLoading] = useState(false);
   const [md, setMd] = useState("");
+  const [theme, setTheme] = useState<string>("white");
 
   async function onGenerate() {
     setLoading(true);
     setMd("");
-    try {
-      const r = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic,
-          language,
-          research: useResearch,
-          extraText,
-        }),
-      });
-      const j = await r.json();
-      if (j?.ok) setMd(j.content);
-      else alert(j?.error || "Falha ao gerar.");
-    } catch (e) {
-      console.error(e);
-      alert("Erro de rede ao gerar.");
-    } finally {
-      setLoading(false);
+    const r = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic,
+        language,
+        research: useResearch,
+        extraText,
+        templateId,
+        textDensity,
+        visualDensity,
+        generateImages,
+        maxImages,
+      }),
+    });
+    const j = await r.json();
+    setLoading(false);
+    if (j?.ok) {
+      setMd(j.content);
+      setTheme(j.revealTheme);
+    } else {
+      alert(j?.error || "Falha ao gerar.");
     }
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-3xl font-semibold mb-6">
-        {process.env.NEXT_PUBLIC_APP_TITLE || "Gamma-lite – Pembroke Collins"}
-      </h1>
+    <main className="mx-auto max-w-5xl px-6 py-10">
+      <div className="flex items-center gap-4 mb-6">
+        <img src="/pembroke-collins.png" alt="Pembroke Collins" className="h-8" />
+        <h1 className="text-2xl font-semibold">Gamma-lite — Pembroke Collins</h1>
+      </div>
 
       <label className="block mb-2 font-medium">Tema</label>
       <input
@@ -65,7 +76,20 @@ export default function Home() {
           </select>
         </div>
 
-        <div className="md:col-span-2 flex items-end gap-2">
+        <div>
+          <label className="block mb-2 font-medium">Template</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value as any)}
+          >
+            {Object.entries(TEMPLATES).map(([id, t]) => (
+              <option key={id} value={id}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-end gap-2">
           <input
             id="research"
             type="checkbox"
@@ -76,17 +100,54 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Upload de arquivos para extrair texto e anexar ao prompt */}
-      <div className="mb-4">
-        <label className="block mb-2 font-medium">Anexar arquivos (opcional)</label>
-        <UploadBox
-          onExtract={(t) =>
-            setExtraText((prev) => (prev ? prev + "\n\n" + t : t))
-          }
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        <div>
+          <label className="block mb-2 font-medium">Densidade de texto</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={textDensity}
+            onChange={(e) => setTextDensity(e.target.value as any)}
+          >
+            <option value="compact">Compacta</option>
+            <option value="balanced">Balanceada</option>
+            <option value="detailed">Detalhada</option>
+          </select>
+        </div>
+        <div>
+          <label className="block mb-2 font-medium">Densidade visual</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={visualDensity}
+            onChange={(e) => setVisualDensity(e.target.value as any)}
+          >
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+          </select>
+        </div>
+        <div className="flex items-end gap-3">
+          <input
+            id="genimg"
+            type="checkbox"
+            checked={generateImages}
+            onChange={(e) => setGenerateImages(e.target.checked)}
+          />
+          <label htmlFor="genimg">Gerar imagens IA</label>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            className="w-20 border rounded px-2 py-1"
+            value={maxImages}
+            onChange={(e) => setMaxImages(Number(e.target.value))}
+            title="Máx. imagens"
+          />
+        </div>
       </div>
 
-      <label className="block mb-2 font-medium">Texto adicional (opcional)</label>
+      <UploadBox onExtract={(t) => setExtraText((p) => (p ? p + "\n\n" + t : t))} />
+
+      <label className="block mt-6 mb-2 font-medium">Texto adicional (opcional)</label>
       <textarea
         className="w-full border rounded px-3 py-2 mb-4 min-h-[120px]"
         value={extraText}
@@ -109,6 +170,10 @@ export default function Home() {
           <pre className="whitespace-pre-wrap border rounded p-4 bg-white">
             {md}
           </pre>
+
+          <p className="mt-4 text-sm opacity-70">
+            Tema Reveal sugerido: <code>{theme}</code> (usado no preview).
+          </p>
         </>
       )}
     </main>
