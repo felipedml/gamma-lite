@@ -49,3 +49,5 @@ Se quiser, depois incrementamos com:
 
 Se travar em algum ponto do upload ou do deploy, me diga **o que aparece na tela** e eu corrijo na hora.
 ::contentReference[oaicite:0]{index=0}
+
+<!-- touch: forçar deploy -->
