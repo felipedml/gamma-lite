@@ -1,15 +1,25 @@
-// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{ts,tsx,js,jsx}", "./components/**/*.{ts,tsx,js,jsx}"],
+  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          100: "#F2F2F2",
-          600: "#666666",
-          700: "#4A4A4A",
+        pc: {
+          // Pembroke Collins
+          primary: "#6D6D6D",   // cinza da marca
+          primaryDark: "#5A5A5A",
+          primaryLight: "#8B8B8B",
+          bg: "#F5F5F5",
+          text: "#222222",
+          surface: "#FFFFFF",
+          accent: "#9E9E9E"
         },
-        black: "#1F1F1F",
+      },
+      borderRadius: {
+        xl: "14px",
+      },
+      boxShadow: {
+        soft: "0 8px 24px rgba(0,0,0,.08)",
       },
     },
   },
