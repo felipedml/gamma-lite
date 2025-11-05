@@ -1,53 +1,127 @@
-# Gamma-lite
+Gamma-lite — Pembroke Collins
 
-Gerador de slides com **OpenAI** + **Reveal.js**.  
-Sem banco, sem autenticação, sem serviços externos além da sua **OPENAI_API_KEY**.
+Gerador de slides em Next.js + Reveal.js, com conteúdo feito por OpenAI (gpt-4.1-mini) e enriquecimento opcional por Perplexity Sonar (sonar-reasoning).
+Sem banco de dados e sem autenticação. Exporta HTML stand-alone (abre offline).
 
-## Como usar (Vercel)
+✨ Recursos
 
-1. Faça upload deste projeto para o seu repositório.
-2. No Vercel, crie um projeto a partir do repositório.
-3. Em **Settings → Environment Variables**, adicione:
-   - `OPENAI_API_KEY` = sua chave da OpenAI
-4. Deploy.
+Prompt simples (“tema”) + texto/arquivos base (upload até 200 MB, parsing server-side).
 
-## Desenvolvimento local
+Densidade (mais texto × mais imagens) e templates (statement, sidebar, image-focus, clean).
 
-```bash
+Paleta e logomarca Pembroke Collins (configuráveis).
+
+Gera Markdown + Reveal HTML pronto para apresentar/baixar.
+
+Providers fixos (sem escolha na UI):
+
+Texto: OpenAI gpt-4.1-mini
+
+Pesquisa/Contexto (toggle “Usar pesquisa”): Perplexity sonar-reasoning
+
+Imagens (opcional): OpenAI image API (quando template pedir imagem)
+
+🚀 Deploy na Vercel (zero backend extra)
+
+Importe este repositório na Vercel.
+
+Em Settings → Environment Variables, crie:
+
+# Obrigatórias
+OPENAI_API_KEY=...           # sua chave OpenAI
+PPLX_API_KEY=...             # sua chave Perplexity
+
+# Opcionais (branding/UX)
+NEXT_PUBLIC_APP_TITLE=Gamma-lite – Pembroke Collins
+NEXT_PUBLIC_BRAND_PRIMARY=#6B6B6B            # cinza Pembroke
+BRAND_LOGO_URL=/Pembroke Collins logo.png    # já em /public
+
+# Limites/ajustes
+MAX_UPLOAD_MB=200
+
+
+Framework Preset: Next.js (auto).
+
+Build & Output: padrão da Vercel para Next 14.
+
+Deploy. (Se fizer ajustes, use Redeploy → Use latest commit from Git.)
+
+Dica: o arquivo da logo já está em /public/Pembroke Collins logo.png.
+Quer outra cor? mude NEXT_PUBLIC_BRAND_PRIMARY.
+
+🧑‍💻 Desenvolvimento local
+# 1) preparar variáveis
 cp .env.example .env
-# edite .env com sua OPENAI_API_KEY
-pnpm i   # ou npm i / yarn
-pnpm dev # ou npm run dev
-Abra http://localhost:3000
+# edite .env com suas chaves OPENAI e PPLX
 
-Observações
-O endpoint /api/generate chama a API Chat Completions e exige JSON estrito.
+# 2) instalar e rodar
+npm i                 # (ou pnpm i / yarn)
+npm run dev           # http://localhost:3000
 
-A UI gera um .html autônomo com Reveal.js (CDN) pronto para apresentar.
+🗂️ Estrutura relevante
+app/
+  page.tsx               # UI principal (tema, upload, densidade, templates, gerar)
+  layout.tsx             # wrapper + Tailwind + brand
+  api/
+    extract/route.ts     # extrai texto dos arquivos enviados
+    generate/route.ts    # gera markdown + slides
+    presentation/generate/route.ts  # baixa HTML Reveal
+components/
+  UploadBox.tsx
+  TemplatePicker.tsx
+  DensityControl.tsx
+lib/
+  providers/
+    openai.ts            # client OpenAI (gpt-4.1-mini / images)
+    perplexity.ts        # client Perplexity (sonar-reasoning)
+  templates.ts           # catálogo de templates (statement/sidebar/…)
+  images.ts              # geração/placeholder de imagens
+  revealTemplate.js      # monta HTML Reveal a partir dos slides
+public/
+  Pembroke Collins logo.png
 
-markdown
-Copiar código
+🔧 Como funciona (resumo)
 
----
+/api/extract: recebe os uploads, extrai texto (PDF/DOCX/TXT etc.) e devolve ao front.
 
-# ✅ Passo a passo (rapidíssimo)
+/api/generate: monta o prompt com tema + texto extra + (opcional) pesquisa Perplexity, chama OpenAI (gpt-4.1-mini) e devolve markdown + schema de slides.
 
-1) No repositório **gamma-lite**, clique em **Add file → Upload files** e envie os arquivos/pastas conforme acima.  
-2) Faça o **Commit** na branch `main`.  
-3) No **Vercel**:
-   - Import this repository → **Framework: Next.js** (auto)
-   - **Environment Variable**: `OPENAI_API_KEY` = *sua chave*
-   - Deploy.
-4) Acesse a URL do projeto. Escreva o tema, escolha o modelo e **Gerar apresentação**.  
-5) Use **Baixar .html** para salvar um arquivo Reveal.js “stand-alone”.
+/api/presentation/generate: converte os slides em Reveal HTML via lib/revealTemplate.js e retorna um .html “stand-alone”.
 
-Se quiser, depois incrementamos com:
-- Temas Reveal.js alternáveis (black/white/league/…)
-- Exportação **.pptx** via uma rota server-side
-- Upload de texto/arquivo base
-- “Templates” pedagógicos (ENEM, ABNT etc.)
+🧪 Uso rápido
 
-Se travar em algum ponto do upload ou do deploy, me diga **o que aparece na tela** e eu corrijo na hora.
-::contentReference[oaicite:0]{index=0}
+Digite o tema (ex.: “Aula: O Cortiço (Aluísio Azevedo)”).
+
+(Opcional) Anexe arquivos/cole notas.
+
+Escolha template + densidade e Usar pesquisa (se quiser Perplexity).
+
+Clique Gerar apresentação → visualize → Baixar HTML.
+
+🔒 Privacidade
+
+Não há banco nem contas de usuário.
+
+Arquivos são processados na request e descartados.
+
+Só suas chaves de API são usadas (OpenAI e Perplexity).
+
+❗Troubleshooting
+
+Build usa código antigo: faça um commit leve (ex.: edite README) e na Vercel use Redeploy → Use latest commit from Git.
+
+404 de logo: confirme BRAND_LOGO_URL apontando para um arquivo em /public.
+
+Upload muito grande: ajuste MAX_UPLOAD_MB ou reduza o arquivo.
+
+Erros de provider: verifique OPENAI_API_KEY / PPLX_API_KEY em Settings → Environment Variables.
+
+📄 Licenças & créditos
+
+Reveal.js (MIT) • Next.js (MIT) • Tailwind CSS (MIT)
+
+Conteúdos gerados por OpenAI/Perplexity (use com responsabilidade)
+
+Pembroke Collins – Books & Education • Gamma-lite
 
 <!-- touch: forçar deploy -->
