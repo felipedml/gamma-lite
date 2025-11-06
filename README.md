@@ -1,9 +1,9 @@
-Gamma-lite — Pembroke Collins
+#Gamma-lite — Pembroke Collins
 
 Gerador de slides em Next.js + Reveal.js, com conteúdo feito por OpenAI (gpt-4.1-mini) e enriquecimento opcional por Perplexity Sonar (sonar-reasoning).
 Sem banco de dados e sem autenticação. Exporta HTML stand-alone (abre offline).
 
-✨ Recursos
+##✨ Recursos
 
 Prompt simples (“tema”) + texto/arquivos base (upload até 200 MB, parsing server-side).
 
@@ -21,7 +21,7 @@ Pesquisa/Contexto (toggle “Usar pesquisa”): Perplexity sonar-reasoning
 
 Imagens (opcional): OpenAI image API (quando template pedir imagem)
 
-🚀 Deploy na Vercel (zero backend extra)
+##🚀 Deploy na Vercel (zero backend extra)
 
 Importe este repositório na Vercel.
 
@@ -49,7 +49,7 @@ Deploy. (Se fizer ajustes, use Redeploy → Use latest commit from Git.)
 Dica: o arquivo da logo já está em /public/Pembroke Collins logo.png.
 Quer outra cor? mude NEXT_PUBLIC_BRAND_PRIMARY.
 
-🧑‍💻 Desenvolvimento local
+##🧑‍💻 Desenvolvimento local
 # 1) preparar variáveis
 cp .env.example .env
 # edite .env com suas chaves OPENAI e PPLX
@@ -58,7 +58,7 @@ cp .env.example .env
 npm i                 # (ou pnpm i / yarn)
 npm run dev           # http://localhost:3000
 
-🗂️ Estrutura relevante
+##🗂️ Estrutura relevante
 app/
   page.tsx               # UI principal (tema, upload, densidade, templates, gerar)
   layout.tsx             # wrapper + Tailwind + brand
@@ -88,7 +88,7 @@ public/
 
 /api/presentation/generate: converte os slides em Reveal HTML via lib/revealTemplate.js e retorna um .html “stand-alone”.
 
-🧪 Uso rápido
+##🧪 Uso rápido
 
 Digite o tema (ex.: “Aula: O Cortiço (Aluísio Azevedo)”).
 
@@ -98,7 +98,7 @@ Escolha template + densidade e Usar pesquisa (se quiser Perplexity).
 
 Clique Gerar apresentação → visualize → Baixar HTML.
 
-🔒 Privacidade
+##🔒 Privacidade
 
 Não há banco nem contas de usuário.
 
@@ -106,7 +106,7 @@ Arquivos são processados na request e descartados.
 
 Só suas chaves de API são usadas (OpenAI e Perplexity).
 
-❗Troubleshooting
+##❗Troubleshooting
 
 Build usa código antigo: faça um commit leve (ex.: edite README) e na Vercel use Redeploy → Use latest commit from Git.
 
@@ -116,12 +116,12 @@ Upload muito grande: ajuste MAX_UPLOAD_MB ou reduza o arquivo.
 
 Erros de provider: verifique OPENAI_API_KEY / PPLX_API_KEY em Settings → Environment Variables.
 
-📄 Licenças & créditos
+##📄 Licenças & créditos
 
 Reveal.js (MIT) • Next.js (MIT) • Tailwind CSS (MIT)
 
 Conteúdos gerados por OpenAI/Perplexity (use com responsabilidade)
 
-Pembroke Collins – Books & Education • Gamma-lite
+*_Pembroke Collins – Books & Education • Gamma-lite_*
 
 <!-- touch: forçar deploy -->
