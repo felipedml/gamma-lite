@@ -1,122 +1,176 @@
 "use client";
 
 import { useState } from "react";
+import UploadBox from "@/components/UploadBox";
 import TemplatePicker from "@/components/TemplatePicker";
 import DensityControl from "@/components/DensityControl";
 
-/**
- * Página principal: permite definir tema, idioma, nº de slides, template,
- * densidade de texto e imagens; envia dados para /api/presentation/generate.
- */
-export default function Home() {
-  const [topic, setTopic] = useState("");
-  const [lang, setLang] = useState("pt-BR");
-  const [slides, setSlides] = useState(8);
-  const [template, setTemplate] = useState("clean");
-  const [density, setDensity] = useState("balanced");
-  const [imageMode, setImageMode] = useState("some");
-  const [files, setFiles] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+type GenerateResponse = {
+  ok: boolean;
+  content?: string;
+  error?: string;
+};
 
-  async function generate() {
+export default function Home() {
+  const [topic, setTopic] = useState<string>("");
+  const [language, setLanguage] = useState<string>("pt-BR");
+  const [useResearch, setUseResearch] = useState<boolean>(true);
+  const [extraText, setExtraText] = useState<string>("");
+  const [slides, setSlides] = useState<number>(10);
+  const [template, setTemplate] = useState<string>("clean");
+  const [density, setDensity] = useState<"low" | "medium" | "high">("medium");
+
+  const [loading, setLoading] = useState<boolean>(false);
+  const [md, setMd] = useState<string>("");
+
+  async function onGenerate() {
+    if (!topic.trim()) {
+      alert("Informe o tema.");
+      return;
+    }
     setLoading(true);
+    setMd("");
+
     try {
-      const form = new FormData();
-      form.append("topic", topic);
-      form.append("lang", lang);
-      form.append("slides", String(slides));
-      form.append("template", template);
-      form.append("density", density);
-      form.append("imageMode", imageMode);
-      files.forEach((f) => form.append("files", f));
-      const res = await fetch("/api/presentation/generate", {
+      const r = await fetch("/api/generate", {
         method: "POST",
-        body: form,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic,
+          language,
+          research: useResearch,
+          extraText,
+          slides,
+          template,
+          density,
+        }),
       });
-      const data = await res.json();
-      if (res.ok && data.html) {
-        const blob = new Blob([data.html], { type: "text/html;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = data.filename || "presentation.html";
-        a.click();
-        URL.revokeObjectURL(url);
+
+      const j = (await r.json()) as GenerateResponse;
+      setLoading(false);
+
+      if (j?.ok && j.content) {
+        setMd(j.content);
       } else {
-        alert(data.error || "Erro na geração");
+        alert(j?.error || "Falha ao gerar.");
       }
     } catch (e: any) {
-      alert("Erro: " + e.message);
-    } finally {
       setLoading(false);
+      alert(e?.message || "Erro inesperado ao gerar.");
     }
   }
 
   return (
-    <div className="space-y-6">
-      <section className="card p-5">
-        <div className="text-xl font-semibold mb-3">Gerar apresentação</div>
-        <textarea
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="Descreva o tema ou cole seu conteúdo…"
-          className="w-full h-32 p-3 rounded-md border border-gray-300 bg-white"
-        />
-        <div className="mt-3 grid md:grid-cols-3 gap-3">
-          <div>
-            <label className="text-sm block mb-1">Idioma</label>
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value)}
-              className="w-full border rounded-md p-2"
-            >
-              <option value="pt-BR">Português (Brasil)</option>
-              <option value="en-US">English (US)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm block mb-1">Número de slides</label>
-            <input
-              type="number"
-              min="4"
-              max="30"
-              value={slides}
-              onChange={(e) => setSlides(e.target.value)}
-              className="w-full border rounded-md p-2"
-            />
-          </div>
-          <div>
-            <label className="text-sm block mb-1">Arquivos (opcional, até 200 MB)</label>
-            <input
-              type="file"
-              multiple
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
-              className="w-full"
-            />
-          </div>
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <h1 className="text-3xl font-semibold mb-6">
+        {process.env.NEXT_PUBLIC_APP_TITLE || "Gamma-lite – Pembroke Collins"}
+      </h1>
+
+      {/* Tema */}
+      <label className="block mb-2 font-medium">Tema</label>
+      <input
+        className="w-full border rounded px-3 py-2 mb-4"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+        placeholder='Ex.: "Aula sobre O Cortiço"'
+      />
+
+      {/* Linha 2: Idioma / Research */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="block mb-2 font-medium">Idioma</label>
+          <select
+            className="w-full border rounded px-3 py-2"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            <option value="pt-BR">Português (BR)</option>
+            <option value="en-US">English (US)</option>
+            <option value="es-ES">Español</option>
+          </select>
         </div>
-      </section>
 
-      <section className="space-y-4">
-        <div className="text-sm font-medium">Templates</div>
-        <TemplatePicker value={template} onChange={setTemplate} />
-        <DensityControl
-          density={density}
-          setDensity={setDensity}
-          imageMode={imageMode}
-          setImageMode={setImageMode}
-        />
-      </section>
-
-      <div>
-        <button
-          onClick={generate}
-          disabled={loading || !topic}
-          className="px-5 py-3 rounded-md bg-[var(--pc-primary)] text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {loading ? "Gerando…" : "Gerar apresentação"}
-        </button>
+        <div className="md:col-span-2 flex items-end gap-2">
+          <input
+            id="research"
+            type="checkbox"
+            checked={useResearch}
+            onChange={(e) => setUseResearch(e.target.checked)}
+          />
+          <label htmlFor="research">Usar pesquisa (Perplexity)</label>
+        </div>
       </div>
-    </div>
+
+      {/* Upload de arquivos para extração */}
+      <div className="mb-4">
+        <UploadBox
+          onExtract={(t) =>
+            setExtraText((prev) => (prev ? prev + "\n\n" + t : t))
+          }
+        />
+      </div>
+
+      {/* Texto adicional */}
+      <label className="block mb-2 font-medium">Texto adicional (opcional)</label>
+      <textarea
+        className="w-full border rounded px-3 py-2 mb-4 min-h-[120px]"
+        value={extraText}
+        onChange={(e) => setExtraText(e.target.value)}
+        placeholder="Cole anotações, tópicos ou trechos do material…"
+      />
+
+      {/* Linha 3: Slides / Template / Density */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        <div>
+          <label className="block mb-2 font-medium">Nº de slides</label>
+          <input
+            type="number"
+            min={4}
+            max={30}
+            value={slides}
+            onChange={(e) =>
+              setSlides(parseInt((e.target as HTMLInputElement).value, 10) || 0)
+            }
+            className="w-full border rounded-md p-2"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">Template</label>
+          <TemplatePicker
+            value={template}
+            onChange={(val) => setTemplate(val)}
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 font-medium">Densidade</label>
+          <DensityControl
+            value={density}
+            onChange={(val) => setDensity(val)}
+          />
+        </div>
+      </div>
+
+      {/* Botão Gerar */}
+      <button
+        className="bg-brand-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        onClick={onGenerate}
+        disabled={!topic || loading}
+      >
+        {loading ? "Gerando…" : "Gerar apresentação"}
+      </button>
+
+      {/* Resultado Markdown */}
+      {md && (
+        <>
+          <hr className="my-8" />
+          <h2 className="font-semibold mb-3">Markdown gerado</h2>
+          <pre className="whitespace-pre-wrap border rounded p-4 bg-white">
+            {md}
+          </pre>
+        </>
+      )}
+    </main>
   );
 }
