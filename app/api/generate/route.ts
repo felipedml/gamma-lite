@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
+// ---------- Tipos ----------
 type Body = {
   topic: string;
   language?: string;
@@ -13,117 +14,155 @@ type Body = {
   density?: "low" | "medium" | "high";
 };
 
+// ---------- OpenAI ----------
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
+
+// ---------- Perplexity (opcional) ----------
 async function researchWithPerplexity(query: string): Promise<string> {
   const key = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
   if (!key) return "";
+
   try {
     const r = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${key}`,
+        Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: "sonar-reasoning",
+        model: "sonar-reasoning-pro",
         messages: [
-          { role: "system", content: "Seja conciso. Liste fatos verificáveis com fontes." },
-          { role: "user", content: query }
+          {
+            role: "system",
+            content:
+              "Responda em markdown conciso, com bullets quando fizer sentido. Foque em fatos verificáveis.",
+          },
+          { role: "user", content: query },
         ],
-        temperature: 0.2,
+        max_tokens: 800,
+        temperature: 0.3,
       }),
     });
-    const j = await r.json();
-    const txt =
-      j?.choices?.[0]?.message?.content?.trim?.() ||
-      j?.choices?.[0]?.text?.trim?.() ||
-      "";
-    return txt;
+
+    if (!r.ok) return "";
+    const json = await r.json();
+    // Em Perplexity, normalmente vem como string em message.content
+    const msg = json?.choices?.[0]?.message;
+    if (!msg) return "";
+
+    if (typeof msg.content === "string") return msg.content.trim();
+
+    if (Array.isArray(msg.content)) {
+      const textPart = msg.content.find((p: any) => p?.type === "text");
+      return (textPart?.text || "").trim();
+    }
+
+    return "";
   } catch {
     return "";
   }
 }
 
+// ---------- Util: extrair texto de ChatCompletion ----------
+function getMessageText(choice: any): string {
+  const msg = choice?.message;
+  if (!msg) return "";
+
+  // SDK v4: normalmente `content` é string
+  if (typeof msg.content === "string") {
+    return (msg.content as string).trim();
+  }
+
+  // fallback caso seja “content parts”
+  if (Array.isArray(msg.content)) {
+    const textPart = (msg.content as any[]).find((p) => p?.type === "text");
+    if (textPart?.text) return String(textPart.text).trim();
+  }
+
+  // compat (alguns exemplos antigos usavam message.text — não existe no tipo)
+  if ((msg as any).text) {
+    return String((msg as any).text).trim();
+  }
+
+  return "";
+}
+
+// ---------- Handler ----------
 export async function POST(req: Request) {
   try {
-    const body: Body = await req.json();
+    const body = (await req.json()) as Body;
 
     const topic = (body.topic || "").trim();
     if (!topic) {
-      return NextResponse.json({ ok: false, error: "Informe o tema." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Informe o campo 'topic'." },
+        { status: 400 }
+      );
     }
 
     const language = body.language || "pt-BR";
-    const useResearch = !!body.research;
-    const extra = (body.extraText || "").trim();
-    const template = body.template || "clean";
     const density = body.density || "medium";
+    const template = body.template || "clean";
+    const extraText = body.extraText?.trim() || "";
 
-    const oiKey = process.env.OPENAI_API_KEY;
-    if (!oiKey) {
-      return NextResponse.json({ ok: false, error: "OPENAI_API_KEY ausente nas variáveis de ambiente." }, { status: 500 });
-    }
-
-    // Pesquisa opcional (Perplexity)
-    let researchNotes = "";
-    if (useResearch) {
-      const r = await researchWithPerplexity(
-        `Pesquise rapidamente sobre: ${topic}. Resuma em tópicos com 3-8 bullets e inclua fontes no final.`
+    // Pesquisa opcional
+    let research = "";
+    if (body.research) {
+      research = await researchWithPerplexity(
+        `Faça um breve levantamento factual sobre: ${topic}.`
       );
-      if (r) {
-        researchNotes = `\n\n### Notas de pesquisa (resumo com fontes)\n${r}\n`;
-      }
     }
 
-    const openai = new OpenAI({ apiKey: oiKey });
+    // Prompt
+    const system =
+      "Você é um gerador de conteúdo para slides (markdown). Seja direto, separe tópicos em bullets, sem rodeios, sem introduções desnecessárias.";
+    const user = [
+      `Tema: ${topic}`,
+      `Idioma: ${language}`,
+      `Densidade: ${density} (low/medium/high)`,
+      `Template sugerido: ${template}`,
+      extraText ? `Observações: ${extraText}` : "",
+      research ? `Pesquisa (referência):\n${research}` : "",
+      "",
+      "Produza Markdown bem formatado. Use títulos e listas curtas (5–8 itens).",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const sys = [
-      `Você é um gerador de apresentações em Markdown (para Reveal.js).`,
-      `Idioma final: ${language}.`,
-      `Escreva slides claros, objetivos e bem estruturados.`,
-      `Use marcadores quando fizer sentido.`,
-      `Quando pertinente a ilustrações, insira marcadores no formato [imagem: prompt descritivo].`,
-      `Evite textos muito longos por slide.`,
-      `Densidade de conteúdo: ${density}.`,
-      `Template sugerido: ${template}.`
-    ].join(" ");
-
-    const usr = [
-      `TEMA PRINCIPAL: ${topic}`,
-      extra ? `\n\nTEXTO/NOTAS COMPLEMENTARES:\n${extra}` : "",
-      researchNotes
-    ].join("");
-
+    // Chamada OpenAI (Chat Completions)
     const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.3,
+      model: "gpt-4o-mini",
+      temperature: 0.4,
       messages: [
-        { role: "system", content: sys },
-        {
-          role: "user",
-          content:
-            usr +
-            `\n\nFORMATO DE SAÍDA:\n` +
-            `- Título inicial (#)\n` +
-            `- Seções com '##' e bullets;\n` +
-            `- Onde couber, inclua [imagem: descrição] para posterior geração de imagem;` +
-            `- No fim, uma seção "Próximos passos".`
-        }
-      ]
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
     });
 
     const content =
-      completion?.choices?.[0]?.message?.content?.trim?.() ||
-      completion?.choices?.[0]?.message?.text?.trim?.() ||
-      "";
+      getMessageText(completion.choices?.[0]) ||
+      ""; // <-- sem `.message.text`, somente via helper
 
     if (!content) {
-      return NextResponse.json({ ok: false, error: "Falha ao gerar conteúdo." }, { status: 500 });
+      return NextResponse.json(
+        { error: "Não houve conteúdo retornado pelo modelo." },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ ok: true, content });
+    return NextResponse.json(
+      {
+        ok: true,
+        markdown: content,
+        meta: { template, density, language, usedResearch: !!research },
+      },
+      { status: 200 }
+    );
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message || String(e) },
+      { error: e?.message || "Erro inesperado" },
       { status: 500 }
     );
   }
